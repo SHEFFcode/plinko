@@ -3,16 +3,14 @@ const _ = require('lodash')
 
 class LinearRegression {
   constructor(features, labels, options) {
-    this.features = tf.tensor(features)
+    this.features = this.processFeatures(features)
     this.labels = tf.tensor(labels)
-    this.features = tf
-      .ones([this.features.shape[0], 1])
-      .concat(this.features, 1) // number of columns will always be 1, rows will be same as rows in features
+    this.mseHistory = []
     this.options = Object.assign(
       { learningRate: 0.1, iterations: 1000 },
       options,
     )
-    this.weights = tf.zeros([2, 1]) // there are only 2 weights, m and b
+    this.weights = tf.zeros([this.features.shape[1], 1]) // the number of rows of weights will be equal to the number of columns in features (this allows for matrix multiplication)
   }
 
   // gradientDescent() {
@@ -57,14 +55,15 @@ class LinearRegression {
   train() {
     for (let i = 0; i < this.options.iterations; i++) {
       this.gradientDescent()
+      this.recordMSE()
+      this.updateLearningRate()
     }
   }
 
   test(testFeatures, testLabels) {
-    testFeatures = tf.tensor(testFeatures)
+    testFeatures = this.processFeatures(testFeatures)
     testLabels = tf.tensor(testLabels)
 
-    testFeatures = tf.ones([testFeatures.shape[0], 1]).concat(testFeatures, 1)
     const predictions = testFeatures.matMul(this.weights)
     const sumSquaresResiduals = testLabels
       .sub(predictions)
@@ -80,6 +79,52 @@ class LinearRegression {
 
     return 1 - sumSquaresResiduals / sumSquaresTotals // this is the coefficient of determination calculation
     // predictions.print()
+  }
+
+  processFeatures(features) {
+    let tfFeatures = tf.tensor(features)
+    let standardizedTFFeatures = this.standardize(tfFeatures)
+    tfFeatures = tf
+      .ones([standardizedTFFeatures.shape[0], 1])
+      .concat(standardizedTFFeatures, 1) // ones need to happen after standardization, otherwise we will standardize the 1s which will screw them up
+
+    return tfFeatures
+  }
+
+  standardize(features) {
+    if (!this.mean && !this.variance) {
+      const { mean, variance } = tf.moments(features, 0) // this is something that tensorflow is able to produce out of the box for us
+      this.mean = mean
+      this.variance = variance
+    }
+
+    return features.sub(this.mean).div(this.variance.pow(0.5)) // standardization formula.
+  }
+
+  recordMSE() {
+    const mse = this.features
+      .matMul(this.weights)
+      .sub(this.labels)
+      .pow(2)
+      .sum()
+      .div(this.features.shape[0])
+      .get() // so that we get a number and not a tensor
+
+    this.mseHistory.push(mse)
+  }
+
+  updateLearningRate() {
+    if (this.mseHistory.length >= 2) {
+      const lastValue = this.mseHistory[this.mseHistory.length - 1]
+      const secondToLastValue = this.mseHistory[this.mseHistory.length - 2]
+
+      if (lastValue > secondToLastValue) {
+        // we are going in the wrong direction
+        this.options.learningRate /= 2
+      } else {
+        this.options.learningRate *= 1.05
+      }
+    }
   }
 }
 
