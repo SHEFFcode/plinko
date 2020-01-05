@@ -59,6 +59,28 @@ class LinearRegression {
       this.gradientDescent()
     }
   }
+
+  test(testFeatures, testLabels) {
+    testFeatures = tf.tensor(testFeatures)
+    testLabels = tf.tensor(testLabels)
+
+    testFeatures = tf.ones([testFeatures.shape[0], 1]).concat(testFeatures, 1)
+    const predictions = testFeatures.matMul(this.weights)
+    const sumSquaresResiduals = testLabels
+      .sub(predictions)
+      .pow(2)
+      .sum() // sum of all the values, so we don't need to provide an axis
+      .get() // don't have to pass arguments to get because there is 1 number inside the tensor
+
+    const sumSquaresTotals = testLabels
+      .sub(testLabels.mean()) // because for totals we want to subtract mean each time
+      .pow(2)
+      .sum()
+      .get()
+
+    return 1 - sumSquaresResiduals / sumSquaresTotals // this is the coefficient of determination calculation
+    // predictions.print()
+  }
 }
 
 module.exports = LinearRegression

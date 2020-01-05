@@ -16,8 +16,5 @@ const regression = new LinearRegression(features, labels, {
 })
 
 regression.train()
-
-console.log(
-  `Updated M is ${regression.weights.get(1, 0)}
-  , updated b is ${regression.weights.get(0, 0)}`,
-)
+const r2 = regression.test(testFeatures, testLabels)
+console.log(`R2 is ${r2}`)
