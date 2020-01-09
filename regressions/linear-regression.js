@@ -41,25 +41,53 @@ class LinearRegression {
   //   this.b = this.b - bSlope * this.options.learningRate
   // }
 
-  gradientDescent() {
-    const currentGuesses = this.features.matMul(this.weights) // this will do matrix multiplication, not elementwise multiplication
-    const differences = currentGuesses.sub(this.labels)
+  gradientDescent(features, labels) {
+    const currentGuesses = features.matMul(this.weights) // this will do matrix multiplication, not elementwise multiplication
+    const differences = currentGuesses.sub(labels)
 
-    const slopes = this.features
+    const slopes = features
       .transpose()
       .matMul(differences)
-      .div(this.features.shape[0]) // shape[0] because the shape is row columns. and we need the number of rows. You could also do a mul(2) per equation, but since the learning rate will mod anyway, we can leave that off
+      .div(features.shape[0]) // shape[0] because the shape is row columns. and we need the number of rows. You could also do a mul(2) per equation, but since the learning rate will mod anyway, we can leave that off
 
     this.weights = this.weights.sub(slopes.mul(this.options.learningRate)) // this will modify the weights so we can try to get to that zero slope
   }
 
   train() {
+    const batchQuantity = Math.floor(
+      this.features.shape[0] / this.options.batchSize,
+    )
+
     for (let i = 0; i < this.options.iterations; i++) {
+      for (let j = 0; j < batchQuantity; j++) {
+        const { batchSize } = this.options
+        const startIndex = j * batchSize
+
+        const featureSlice = this.features.slice(
+          [startIndex, 0],
+          [batchSize, -1],
+        ) // first batch of features to run gradient descent with
+
+        const labelSlice = this.labels.slice([startIndex, 0], [batchSize, -1])
+
+        this.gradientDescent(featureSlice, labelSlice)
+      }
+
+      // Update the values here after going through a full batch
       this.bHistory.push(this.weights.get(0, 0)) // first element in the weights tensor is the b value
-      this.gradientDescent()
       this.recordMSE()
       this.updateLearningRate()
     }
+  }
+
+  /**
+   * Method that takes in an array of arrays of car observations
+   * and returns a prediction for its MPG rating.
+   * @param {array<array<number>>} observations
+   * @returns {tensor} mpgEstimate
+   */
+  predict(observations) {
+    return this.processFeatures(observations).matMul(this.weights)
   }
 
   test(testFeatures, testLabels) {

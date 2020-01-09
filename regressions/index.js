@@ -13,7 +13,8 @@ let { features, labels, testFeatures, testLabels } = loadCSV('./cars.csv', {
 
 const regression = new LinearRegression(features, labels, {
   learningRate: 0.1, // generally small learningRate will mean that we will have to do a ton of iterations
-  iterations: 100,
+  iterations: 3, // with batch gradient descent I can lower this value from 100 to 3!
+  batchSize: 10,
 })
 
 // regression.features.print()
@@ -22,10 +23,11 @@ regression.train()
 const r2 = regression.test(testFeatures, testLabels)
 
 plot({
-  x: regression.bHistory,
-  y: regression.mseHistory,
-  xLabel: 'Value of B',
+  x: regression.mseHistory,
+  xLabel: 'Iteration #',
   yLabel: 'Mean Squared Error',
 })
+
+regression.predict([[120, 2, 380]]).print()
 
 console.log(`R2 is ${r2}`)
