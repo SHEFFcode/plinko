@@ -6,6 +6,7 @@ class LinearRegression {
     this.features = this.processFeatures(features)
     this.labels = tf.tensor(labels)
     this.mseHistory = []
+    this.bHistory = [] // all the diff values of b that we attempt to define relationship between car attributes and car MPG
     this.options = Object.assign(
       { learningRate: 0.1, iterations: 1000 },
       options,
@@ -54,6 +55,7 @@ class LinearRegression {
 
   train() {
     for (let i = 0; i < this.options.iterations; i++) {
+      this.bHistory.push(this.weights.get(0, 0)) // first element in the weights tensor is the b value
       this.gradientDescent()
       this.recordMSE()
       this.updateLearningRate()
