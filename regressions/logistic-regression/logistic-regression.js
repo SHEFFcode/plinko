@@ -5,7 +5,7 @@ class LogisticRegression {
   constructor(features, labels, options) {
     this.features = this.processFeatures(features)
     this.labels = tf.tensor(labels)
-    this.mseHistory = []
+    this.costHistory = [] // this is our cross entropy history. Cross entropy is often referred to as cost function
     this.bHistory = [] // all the diff values of b that we attempt to define relationship between car attributes and car MPG
     this.options = Object.assign(
       { learningRate: 0.1, iterations: 1000, decisionBoundary: 0.5 },
@@ -75,7 +75,7 @@ class LogisticRegression {
 
       // Update the values here after going through a full batch
       this.bHistory.push(this.weights.get(0, 0)) // first element in the weights tensor is the b value
-      this.recordMSE()
+      this.recordCost()
       this.updateLearningRate()
     }
   }
@@ -130,22 +130,35 @@ class LogisticRegression {
     return features.sub(this.mean).div(this.variance.pow(0.5)) // standardization formula.
   }
 
-  recordMSE() {
-    const mse = this.features
-      .matMul(this.weights)
-      .sub(this.labels)
-      .pow(2)
-      .sum()
-      .div(this.features.shape[0])
-      .get() // so that we get a number and not a tensor
+  // takes over for record MSE
 
-    this.mseHistory.push(mse)
+  recordCost() {
+    const guesses = this.features.matMul(this.weights).sigmoid() // these are our guesses
+    const termOne = this.labels.transpose().matMul(guesses.log())
+    const termTwo = this.labels
+      .mul(-1) // we want to get the negative values, so that we dont have to create a tensor of 1s
+      .add(1)
+      .transpose()
+      .matMul(
+        guesses
+          .mul(-1)
+          .add(1)
+          .log(),
+      )
+
+    const cost = termOne
+      .add(termTwo)
+      .div(this.features.shape[0])
+      .mul(-1)
+      .get(0, 0) // to get that single value out
+
+    this.costHistory.unshift(cost)
   }
 
   updateLearningRate() {
-    if (this.mseHistory.length >= 2) {
-      const lastValue = this.mseHistory[this.mseHistory.length - 1]
-      const secondToLastValue = this.mseHistory[this.mseHistory.length - 2]
+    if (this.costHistory.length >= 2) {
+      const lastValue = this.costHistory[this.costHistory.length - 1]
+      const secondToLastValue = this.costHistory[this.costHistory.length - 2]
 
       if (lastValue > secondToLastValue) {
         // we are going in the wrong direction
