@@ -19,7 +19,7 @@ const { features, labels, testFeatures, testLabels } = loadCSV(
           return [1, 0, 0] // fuel efficiency tensor: [low, medium, high]
         } else if (mpg < 30) {
           return [0, 1, 0]
-        } else if (mpg >= 30) {
+        } else {
           return [0, 0, 1]
         }
       },
@@ -35,7 +35,8 @@ const regression = new LogisticRegression(features, _.flatMap(labels), {
   batchSize: 10,
 })
 
-regression.weights.print()
+// regression.weights.print()
 
 regression.train()
+// regression.predict([[150, 200, 2.223]]).print()
 console.log(regression.test(testFeatures, _.flatMap(testLabels))) // accuracy percentage value

@@ -1,16 +1,18 @@
 const tf = require('@tensorflow/tfjs')
 const _ = require('lodash')
 
-class MultivariateLogisticRegression {
+class LogisticRegression {
   constructor(features, labels, options) {
     this.features = this.processFeatures(features)
     this.labels = tf.tensor(labels)
     this.costHistory = [] // this is our cross entropy history. Cross entropy is often referred to as cost function
     this.bHistory = [] // all the diff values of b that we attempt to define relationship between car attributes and car MPG
+
     this.options = Object.assign(
       { learningRate: 0.1, iterations: 1000, decisionBoundary: 0.5 },
       options,
     )
+
     this.weights = tf.zeros([this.features.shape[1], this.labels.shape[1]]) // the number of rows of weights will be equal to the number of columns in features (this allows for matrix multiplication)
   }
 
@@ -90,12 +92,12 @@ class MultivariateLogisticRegression {
     return this.processFeatures(observations)
       .matMul(this.weights)
       .softmax()
-      .argMax(1) // largest value along the horizontal axis
+      .argMax(1)
   }
 
   test(testFeatures, testLabels) {
-    const predictions = this.predict(testFeatures).round()
-    testLabels = tf.tensor(testLabels).argMax(1) // along the horizontal axis
+    const predictions = this.predict(testFeatures)
+    testLabels = tf.tensor(testLabels).argMax(1)
 
     const incorrect = predictions
       .notEqual(testLabels)
@@ -106,20 +108,26 @@ class MultivariateLogisticRegression {
   }
 
   processFeatures(features) {
-    let tfFeatures = tf.tensor(features)
-    let standardizedTFFeatures = this.standardize(tfFeatures)
-    tfFeatures = tf
-      .ones([standardizedTFFeatures.shape[0], 1])
-      .concat(standardizedTFFeatures, 1) // ones need to happen after standardization, otherwise we will standardize the 1s which will screw them up
+    features = tf.tensor(features)
 
-    return tfFeatures
+    features = this.standardize(features)
+
+    features = tf.ones([features.shape[0], 1]).concat(features, 1) // ones need to happen after standardization, otherwise we will standardize the 1s which will screw them up
+
+    return features
   }
 
   standardize(features) {
     if (!this.mean && !this.variance) {
       const { mean, variance } = tf.moments(features, 0) // this is something that tensorflow is able to produce out of the box for us
+
+      const filler = variance
+        .cast('bool')
+        .logicalNot()
+        .cast('float32')
+
       this.mean = mean
-      this.variance = variance
+      this.variance = variance.add(filler)
     }
 
     return features.sub(this.mean).div(this.variance.pow(0.5)) // standardization formula.
@@ -128,7 +136,7 @@ class MultivariateLogisticRegression {
   // takes over for record MSE
 
   recordCost() {
-    const guesses = this.features.matMul(this.weights).softmax() // these are our guesses
+    const guesses = this.features.matMul(this.weights).sigmoid() // these are our guesses
     const termOne = this.labels.transpose().matMul(guesses.log())
     const termTwo = this.labels
       .mul(-1) // we want to get the negative values, so that we dont have to create a tensor of 1s
@@ -152,8 +160,8 @@ class MultivariateLogisticRegression {
 
   updateLearningRate() {
     if (this.costHistory.length >= 2) {
-      const lastValue = this.costHistory[this.costHistory.length - 1]
-      const secondToLastValue = this.costHistory[this.costHistory.length - 2]
+      const lastValue = this.costHistory[0]
+      const secondToLastValue = this.costHistory[1]
 
       if (lastValue > secondToLastValue) {
         // we are going in the wrong direction
@@ -165,4 +173,4 @@ class MultivariateLogisticRegression {
   }
 }
 
-module.exports = MultivariateLogisticRegression
+module.exports = LogisticRegression
