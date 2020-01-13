@@ -121,13 +121,8 @@ class LogisticRegression {
     if (!this.mean && !this.variance) {
       const { mean, variance } = tf.moments(features, 0) // this is something that tensorflow is able to produce out of the box for us
 
-      const filler = variance
-        .cast('bool')
-        .logicalNot()
-        .cast('float32')
-
       this.mean = mean
-      this.variance = variance.add(filler)
+      this.variance = variance
     }
 
     return features.sub(this.mean).div(this.variance.pow(0.5)) // standardization formula.

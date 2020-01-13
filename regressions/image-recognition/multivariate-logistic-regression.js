@@ -94,7 +94,7 @@ class MultivariateLogisticRegression {
   }
 
   test(testFeatures, testLabels) {
-    const predictions = this.predict(testFeatures).round()
+    const predictions = this.predict(testFeatures)
     testLabels = tf.tensor(testLabels).argMax(1) // along the horizontal axis
 
     const incorrect = predictions
@@ -118,10 +118,12 @@ class MultivariateLogisticRegression {
   standardize(features) {
     if (!this.mean && !this.variance) {
       const { mean, variance } = tf.moments(features, 0) // this is something that tensorflow is able to produce out of the box for us
+
       const filler = variance // this will help us fill the 0 values with 1s
         .cast('bool')
         .logicalNot()
         .cast('float32')
+
       this.mean = mean
       this.variance = variance.add(filler) // again we are replacing 0s with 1s so that we don't end up diving by 0
     }
@@ -156,8 +158,8 @@ class MultivariateLogisticRegression {
 
   updateLearningRate() {
     if (this.costHistory.length >= 2) {
-      const lastValue = this.costHistory[this.costHistory.length - 1]
-      const secondToLastValue = this.costHistory[this.costHistory.length - 2]
+      const lastValue = this.costHistory[0]
+      const secondToLastValue = this.costHistory[1]
 
       if (lastValue > secondToLastValue) {
         // we are going in the wrong direction
