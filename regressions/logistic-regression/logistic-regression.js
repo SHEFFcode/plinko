@@ -98,7 +98,7 @@ class LogisticRegression {
   }
 
   test(testFeatures, testLabels) {
-    const predictions = this.predict(testFeatures).round()
+    const predictions = this.predict(testFeatures)
     testLabels = tf.tensor(testLabels)
 
     const incorrect = predictions

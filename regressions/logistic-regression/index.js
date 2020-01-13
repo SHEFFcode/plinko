@@ -19,6 +19,8 @@ const { features, labels, testFeatures, testLabels } = loadCSV(
   },
 )
 
+// console.log(labels)
+
 const regression = new LogisticRegression(features, labels, {
   learningRate: 0.5, // random guess, will be optimized later
   iterations: 100,
@@ -28,6 +30,8 @@ const regression = new LogisticRegression(features, labels, {
 
 regression.train()
 regression.predict([[88, 97, 1.065]]).print()
+
+// console.log(regression.test(testFeatures, testLabels))
 
 console.log(regression.test(testFeatures, testLabels))
 
