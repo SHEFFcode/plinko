@@ -42,15 +42,19 @@ class MultivariateLogisticRegression {
   // }
 
   gradientDescent(features, labels) {
-    const currentGuesses = features.matMul(this.weights).softmax() // this will do matrix multiplication, not elementwise multiplication
-    const differences = currentGuesses.sub(labels)
+    this.weights = tf.tidy(() => {
+      const currentGuesses = features.matMul(this.weights).softmax() // this will do matrix multiplication, not elementwise multiplication
+      const differences = currentGuesses.sub(labels)
 
-    const slopes = features
-      .transpose()
-      .matMul(differences)
-      .div(features.shape[0]) // shape[0] because the shape is row columns. and we need the number of rows. You could also do a mul(2) per equation, but since the learning rate will mod anyway, we can leave that off
+      const slopes = features
+        .transpose()
+        .matMul(differences)
+        .div(features.shape[0]) // shape[0] because the shape is row columns. and we need the number of rows. You could also do a mul(2) per equation, but since the learning rate will mod anyway, we can leave that off
 
-    this.weights = this.weights.sub(slopes.mul(this.options.learningRate)) // this will modify the weights so we can try to get to that zero slope
+      return this.weights.sub(slopes.mul(this.options.learningRate)) // this will modify the weights so we can try to get to that zero slope
+    })
+
+    return this.weights
   }
 
   train() {
@@ -63,18 +67,21 @@ class MultivariateLogisticRegression {
         const { batchSize } = this.options
         const startIndex = j * batchSize
 
-        const featureSlice = this.features.slice(
-          [startIndex, 0],
-          [batchSize, -1],
-        ) // first batch of features to run gradient descent with
+        this.weights = tf.tidy(() => {
+          const featureSlice = this.features.slice(
+            [startIndex, 0],
+            [batchSize, -1],
+          ) // first batch of features to run gradient descent with
 
-        const labelSlice = this.labels.slice([startIndex, 0], [batchSize, -1])
+          const labelSlice = this.labels.slice([startIndex, 0], [batchSize, -1])
 
-        this.gradientDescent(featureSlice, labelSlice)
+          return this.gradientDescent(featureSlice, labelSlice)
+        })
       }
 
       // Update the values here after going through a full batch
       this.bHistory.push(this.weights.get(0, 0)) // first element in the weights tensor is the b value
+
       this.recordCost()
       this.updateLearningRate()
     }
@@ -134,24 +141,28 @@ class MultivariateLogisticRegression {
   // takes over for record MSE
 
   recordCost() {
-    const guesses = this.features.matMul(this.weights).softmax() // these are our guesses
-    const termOne = this.labels.transpose().matMul(guesses.log())
-    const termTwo = this.labels
-      .mul(-1) // we want to get the negative values, so that we dont have to create a tensor of 1s
-      .add(1)
-      .transpose()
-      .matMul(
-        guesses
-          .mul(-1)
-          .add(1)
-          .log(),
-      )
+    const cost = tf.tidy(() => {
+      debugger
+      const guesses = this.features.matMul(this.weights).softmax() // these are our guesses
+      const termOne = this.labels.transpose().matMul(guesses.add(1e-7).log()) // see line 156 below for explanation
+      const termTwo = this.labels
+        .mul(-1) // we want to get the negative values, so that we dont have to create a tensor of 1s
+        .add(1)
+        .transpose()
+        .matMul(
+          guesses
+            .mul(-1)
+            .add(1)
+            .add(1e-7) // 1 * 10 ^ -7 = 0.00000001, so that we never take a value of a log(0), instead it will be a value close to 0
+            .log(),
+        )
 
-    const cost = termOne
-      .add(termTwo)
-      .div(this.features.shape[0])
-      .mul(-1)
-      .get(0, 0) // to get that single value out
+      return termOne
+        .add(termTwo)
+        .div(this.features.shape[0])
+        .mul(-1)
+        .get(0, 0) // to get that single value out
+    })
 
     this.costHistory.unshift(cost)
   }
